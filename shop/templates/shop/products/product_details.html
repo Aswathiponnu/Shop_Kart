@@ -1,0 +1,163 @@
+{% extends 'shop/layouts/main.html' %}
+{% load static %}
+{% block title %}
+    ShopKart - Online Shopping
+{% endblock title %}
+
+{% block content %}
+<section class="bg-light py-4 my-5" style="min-height: 690px;">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <h4 class="mb-3">{{ product }} Details</h4>
+                <hr style="border-color:#b8bfc2;">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                        <li class="breadcrumb-item">
+                            <a href="{% url 'collections' products.category.name|default:'default_category' %}">Collections</a>
+                        </li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ product }}</li>
+                    </ol>
+                </nav>
+                {% include 'shop/inc/message.html' %}
+            </div>
+            
+            <div class="col-4 my-3 pic-box">
+                {% if product.trending %}
+                    <div class="hot">Hot</div>
+                {% endif %}
+                <img src="{{ product.product_image.url }}" class="card-image-top" alt="{{ product }}" width="400px" height="600px">
+            </div>
+
+            <div class="col-8 my-3">
+                <h5 class="text-success">{{ product }}</h5> 
+                <p>{{ product.vendor }}</p>
+                <p>{{ product.description }}</p>
+                <h6 class="my-2 text-danger">Current Price : Rs. <s>{{ product.original_price }}</s></h6>
+                <h5 class="my-2 text-primary">Offer Price : Rs.{{ product.selling_price }}</h5>
+
+                <div class="my-3">
+                    {% if product.quantity > 0 %}
+                        <input type="hidden" value="{{ product.id }}" id="pid">
+                        {% csrf_token %}
+                        <p>
+                            <div class="input-group" style="width:150px">
+                                <button class="input-group-text bg-success text-light" id="btnMinus"><i class="fa fa-minus"></i></button>
+                                <input type="text" name="qty" id="txtQty" value="1" class="form-control text-center">
+                                <button class="input-group-text bg-success text-light" id="btnPlus"><i class="fa fa-plus"></i></button>
+                            </div>
+                        </p>
+                        <button class="btn btn-primary" id="btnCart"><i class="fa fa-shopping-cart"></i> Add to Cart</button>
+                    {% else %}
+                        <button class="btn btn-secondary"><i class="fa fa-minus"></i> Out of Stock</button>
+                    {% endif %}
+                    <button class="btn btn-danger" id="btnFav"><i class="fa fa-heart"></i> Add to Favorites</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function(event) {
+      const btnPlus = document.getElementById("btnPlus");
+      const btnMinus = document.getElementById("btnMinus");
+      const txtQty = document.getElementById("txtQty");
+      const pid = document.getElementById("pid");
+      const btnCart = document.getElementById("btnCart");
+      const btnFav = document.getElementById("btnFav");
+
+      // Increment quantity
+      btnPlus.addEventListener("click", function() {
+          let qty = parseInt(txtQty.value, 10);
+          qty = isNaN(qty) ? 0 : qty;
+          if (qty < 10) {  // Max quantity is 10 (this can be adjusted)
+              qty++;
+              txtQty.value = qty;
+          }
+      });
+
+      // Decrement quantity
+      btnMinus.addEventListener("click", function() {
+          let qty = parseInt(txtQty.value, 10);
+          qty = isNaN(qty) ? 0 : qty;
+          if (qty > 1) {  // Min quantity is 1
+              qty--;
+              txtQty.value = qty;
+          }
+      });
+
+      // Add to cart button click event
+      btnCart.addEventListener("click", function() {
+          let qty = parseInt(txtQty.value, 10);
+          qty = isNaN(qty) ? 0 : qty;
+
+          if (qty > 0) {
+              // Prepare the data to send to the backend
+              let postObj = {
+                  product_qty: qty,
+                  pid: pid.value  // Product ID
+              };
+
+              // Send data to the backend via fetch
+              fetch("/addtocart/", {  // Add the trailing slash here
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: {
+                      'Accept': 'application/json',
+                      'X-Requested-With': 'XMLHttpRequest',
+                      'X-CSRFToken': '{{ csrf_token }}',  // CSRF token included for security
+                  },
+                  body: JSON.stringify(postObj)
+              })
+              .then(response => response.json())
+              .then(data => {
+                  alert(data.status);  // Alert the user with the response message
+              })
+              .catch(error => {
+                  console.error("Error adding to cart:", error);
+              });
+          } else {
+              alert("Please Enter A Valid Quantity");
+          }
+      });
+
+      // Add to favorites button click event
+      btnFav.addEventListener("click", function() {
+          let qty = parseInt(txtQty.value, 10);
+          const productId = pid.value;
+
+          if (productId) {
+              // Prepare the data to send to the backend (add product to favorites)
+              const postObj = {
+                  pid: productId,  // Product ID
+                  product_qty: qty, // Product Quantity (if needed)
+              };
+
+              // Send data to the backend via fetch
+              fetch("/add_to_favorites/", {  // Ensure this URL matches your Django view for adding to favorites
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: {
+                      'Accept': 'application/json',
+                      'X-Requested-With': 'XMLHttpRequest',
+                      'X-CSRFToken': '{{ csrf_token }}',  // CSRF token included for security
+                  },
+                  body: JSON.stringify(postObj)
+              })
+              .then(response => response.json())
+              .then(data => {
+                  alert(data.status);  // Show a success or error message based on the response
+              })
+              .catch(error => {
+                  console.error("Error adding to favorites:", error);
+              });
+          } else {
+              alert("Product ID is missing.");
+          }
+      });
+  });
+</script>
+
+{% endblock content %}
